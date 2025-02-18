@@ -1,6 +1,6 @@
 import { OrderModel, pickupMoel } from "./order.model.js";
 import { sequelize } from "../../DB/config.js";
-import { Op } from "sequelize";
+import { DOUBLE, Op } from "sequelize";
 const GetSlug = (slug) => {
   switch (slug) {
     case "consignee-details":
@@ -60,18 +60,45 @@ export const getOrder = async (req, res) => {
 export const getAllOrder = async (req, res) => {
   try {
     console.log("request query", req.query);
-    const { page, batchSize, order_status } = req.query;
+    const {
+      page,
+      batchSize,
+      order_status,
+      start_date,
+      end_date,
+      email,
+      phonenumber,
+    } = req.query;
 
     // Parse parameters with defaults
     const pageInt = parseInt(page) || 1;
     const batchSizeInt = parseInt(batchSize) || 10;
+    console.log("debugging date", start_date);
+    console.log("endding date", end_date);
 
     // Build the where clause based on order_status
     const whereClause = {};
-    if (order_status) {
+    if (order_status && start_date && end_date && email) {
       whereClause.order_status = order_status;
+      whereClause.createdAt = {
+        [Op.between]: [new Date(`${start_date}`), new Date(`${end_date}`)],
+      };
+      whereClause["consigneeDetails.email"] = email;
+    }
+    if (order_status && start_date && end_date && phonenumber) {
+      whereClause.order_status = order_status;
+      whereClause.createdAt = {
+        [Op.between]: [new Date(`${start_date}`), new Date(`${end_date}`)],
+      };
+      whereClause["consigneeDetails.phonenumber"] = phonenumber;
     }
 
+    if (order_status && start_date && end_date) {
+      whereClause.order_status = order_status;
+      whereClause.createdAt = {
+        [Op.between]: [new Date(`${start_date}`), new Date(`${end_date}`)],
+      };
+    }
     // Get total count of records matching the filter
     const countResult = await OrderModel.findAndCountAll({
       where: whereClause,
