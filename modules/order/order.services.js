@@ -68,37 +68,31 @@ export const getAllOrder = async (req, res) => {
       end_date,
       email,
       phonenumber,
+      order_id,
     } = req.query;
 
     // Parse parameters with defaults
     const pageInt = parseInt(page) || 1;
     const batchSizeInt = parseInt(batchSize) || 10;
-    console.log("debugging date", start_date);
-    console.log("endding date", end_date);
+    const startDate = new Date(`${start_date}T00:00:00.000Z`); // Start of the day
+    const endDate = new Date(`${end_date}T23:59:59.999Z`);
 
     // Build the where clause based on order_status
     const whereClause = {};
-    if (order_status && start_date && end_date && email) {
-      whereClause.order_status = order_status;
-      whereClause.createdAt = {
-        [Op.between]: [new Date(`${start_date}`), new Date(`${end_date}`)],
-      };
-      whereClause["consigneeDetails.email"] = email;
-    }
-    if (order_status && start_date && end_date && phonenumber) {
-      whereClause.order_status = order_status;
-      whereClause.createdAt = {
-        [Op.between]: [new Date(`${start_date}`), new Date(`${end_date}`)],
-      };
-      whereClause["consigneeDetails.phonenumber"] = phonenumber;
-    }
 
     if (order_status && start_date && end_date) {
       whereClause.order_status = order_status;
       whereClause.createdAt = {
-        [Op.between]: [new Date(`${start_date}`), new Date(`${end_date}`)],
+        [Op.between]: [startDate, endDate],
       };
     }
+
+    if (email) whereClause["consigneeDetails.email"] = email;
+
+    if (phonenumber) whereClause["consigneeDetails.phonenumber"] = phonenumber;
+
+    if (order_id) whereClause["orderDetails.orderid"] = order_id;
+
     // Get total count of records matching the filter
     const countResult = await OrderModel.findAndCountAll({
       where: whereClause,
@@ -120,6 +114,7 @@ export const getAllOrder = async (req, res) => {
         pageCount: Math.ceil(countResult.count / batchSizeInt),
       });
     } else {
+      console.log("response", response);
       res.status(404).json({ errorMessage: "Order not found" });
     }
   } catch (err) {
