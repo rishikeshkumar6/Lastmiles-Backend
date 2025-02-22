@@ -16,6 +16,18 @@ const GetSlug = (slug) => {
   }
 };
 
+function isValidEmail(input) {
+  // Basic email validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(input);
+}
+
+function isValidPhoneNumber(input) {
+  // Basic phone number validation
+  const phoneRegex = /^\d{10}$/; // Adjust regex as per your requirements
+  return phoneRegex.test(input);
+}
+
 export const getOrder = async (req, res) => {
   try {
     if (Object.keys(req.query).length > 0 && req.query.id && req.query.slug) {
@@ -66,6 +78,7 @@ export const getAllOrder = async (req, res) => {
       order_status,
       start_date,
       end_date,
+      searchTerm,
       email,
       phonenumber,
       order_id,
@@ -87,11 +100,16 @@ export const getAllOrder = async (req, res) => {
       };
     }
 
-    if (email) whereClause["consigneeDetails.email"] = email;
+    const isEmail = isValidEmail(searchTerm);
 
-    if (phonenumber) whereClause["consigneeDetails.phonenumber"] = phonenumber;
+    const isPhonenumber = isValidPhoneNumber(searchTerm);
 
-    if (order_id) whereClause["orderDetails.orderid"] = order_id;
+    if (isEmail) whereClause["consigneeDetails.email"] = searchTerm;
+
+    if (isPhonenumber) whereClause["consigneeDetails.phonenumber"] = searchTerm;
+
+    if (searchTerm && !isEmail && !isPhonenumber)
+      whereClause["orderDetails.orderid"] = searchTerm;
 
     // Get total count of records matching the filter
     const countResult = await OrderModel.findAndCountAll({
