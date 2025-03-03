@@ -41,8 +41,8 @@ if (cluster.isMaster) {
   const port = process.env.PORT || 5000;
 
   const allowedOrigins = [
-    "http://localhost:3000", // Local development
-    "https://qalastmiles-5489ldxp2-rishus-projects-b58535a6.vercel.app", // Production frontend
+    "https://logistic-solution.netlify.app/",
+    "http://localhost:3000",
   ];
 
   app.use(
