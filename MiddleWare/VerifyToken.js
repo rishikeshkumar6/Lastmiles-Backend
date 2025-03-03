@@ -34,10 +34,7 @@ export const RefreshToken = async (req, res, next) => {
       err instanceof jwt.JsonWebTokenError ||
       err instanceof jwt.TokenExpiredError
     ) {
-      return res.send(500, {
-        statusCode: 404,
-        errorMessage: "token is not valid",
-      });
+      RefreshToken(req, res, next);
     } else {
       console.log("Internal server error:", err.message);
       return res

@@ -122,6 +122,28 @@ export const userLogin = async (req, res) => {
   }
 };
 
+export const userLogout = async (req, res) => {
+  try {
+    const accessToken = res.clearCookie("accessToken", {
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+    });
+    const refreshToken = res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+    });
+    console.log("userLogout part", accessToken, refreshToken);
+    return res.send(200, {
+      statusCode: 200,
+      message: "coockies delete successfully",
+    });
+  } catch (err) {
+    res.send(500, { errorMessage: "internal server error" });
+  }
+};
+
 export const getUser = async (req, res) => {
   try {
     if (req.user["response"] !== undefined) {

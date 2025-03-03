@@ -40,9 +40,20 @@ if (cluster.isMaster) {
   const app = express();
   const port = process.env.PORT || 5000;
 
+  const allowedOrigins = [
+    "http://localhost:3000", // Local development
+    "https://qalastmiles-5489ldxp2-rishus-projects-b58535a6.vercel.app", // Production frontend
+  ];
+
   app.use(
     cors({
-      origin: "http://localhost:3000", // Allow only your frontend origin
+      origin: function (origin, callback) {
+        if (!origin || allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error("Not allowed by CORS"));
+        }
+      },
       credentials: true, // Allow cookies to be sent
     })
   );

@@ -7,12 +7,14 @@ import {
   getAllUser,
   updateUser,
   deleteUser,
+  userLogout,
 } from "./user.services.js";
 import { verifyToken } from "../../MiddleWare/VerifyToken.js";
 const routes = express.Router();
 
 routes.post("/register", userRegistration);
 routes.post("/login", userLogin);
+routes.post("/logout", userLogout);
 // routes.post("/refresh-token", RefreshToken);
 routes.put("/otpverification", otpVerification);
 routes.get("/read", verifyToken, getUser);

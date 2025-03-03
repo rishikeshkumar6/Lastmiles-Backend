@@ -72,17 +72,8 @@ export const getOrder = async (req, res) => {
 export const getAllOrder = async (req, res) => {
   try {
     console.log("request query", req.query);
-    const {
-      page,
-      batchSize,
-      order_status,
-      start_date,
-      end_date,
-      searchTerm,
-      email,
-      phonenumber,
-      order_id,
-    } = req.query;
+    const { page, batchSize, order_status, start_date, end_date, searchTerm } =
+      req.query;
 
     // Parse parameters with defaults
     const pageInt = parseInt(page) || 1;
