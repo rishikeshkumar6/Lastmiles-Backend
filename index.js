@@ -40,10 +40,7 @@ if (cluster.isMaster) {
   const app = express();
   const port = process.env.PORT || 5000;
 
-  const allowedOrigins = [
-    "https://logistic-solution.netlify.app/",
-    "http://localhost:3000",
-  ];
+  const allowedOrigins = [process.env.REACT_APP_DEVELOPEMENT_URL];
 
   app.use(
     cors({
