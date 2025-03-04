@@ -1,4 +1,6 @@
 import jwt from "jsonwebtoken";
+import dotenv from "dotenv";
+dotenv.config();
 
 export const RefreshToken = async (req, res, next) => {
   try {
@@ -21,8 +23,8 @@ export const RefreshToken = async (req, res, next) => {
 
     res.cookie("accessToken", newAccessToken, {
       httpOnly: true,
-      secure: false, // Only secure in production
-      sameSite: "lax", // More flexible than strict
+      secure: process.env.NODE_ENV === "production", // HTTPS only in production
+      sameSite: process.env.SAME_SITE,
       maxAge: 60 * 60 * 1000, // 1 hours in milliseconds
     });
     console.log("refresh token response", decoded);
@@ -72,8 +74,8 @@ export const verifyToken = async (req, res, next) => {
     ) {
       res.clearCookie("accessToken", {
         httpOnly: true,
-        secure: false,
-        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production", // HTTPS only in production
+        sameSite: process.env.SAME_SITE,
       });
       RefreshToken(req, res, next);
     } else {

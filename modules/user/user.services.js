@@ -92,15 +92,15 @@ export const userLogin = async (req, res) => {
           console.log("refreshToken", refreshToken);
           res.cookie("refreshToken", refreshToken, {
             httpOnly: true,
-            secure: false, // Only secure in production
-            sameSite: "lax", // More flexible than strict
+            secure: process.env.NODE_ENV === "production", // HTTPS only in production
+            sameSite: process.env.SAME_SITE, // More flexible than strict
             maxAge: 24 * 60 * 60 * 1000, // 24 hours in milliseconds
           });
           res.cookie("accessToken", accessToken, {
-            httpOnly: true,
-            secure: false, // Only secure in production
-            sameSite: "lax", // More flexible than strict
-            maxAge: 60 * 60 * 1000, // 1 hours in milliseconds
+            httpOnly: true, // Prevents client-side JS from accessing the cookie
+            secure: process.env.NODE_ENV === "production", // HTTPS only in production
+            sameSite: process.env.SAME_SITE, // CSRF protection
+            maxAge: 60 * 60 * 1000, // 1 hour expiration
           });
           return res.send(200, {
             token: accessToken,
@@ -126,13 +126,13 @@ export const userLogout = async (req, res) => {
   try {
     const accessToken = res.clearCookie("accessToken", {
       httpOnly: true,
-      secure: false,
-      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production", // HTTPS only in production
+      sameSite: process.env.SAME_SITE,
     });
     const refreshToken = res.clearCookie("refreshToken", {
       httpOnly: true,
-      secure: false,
-      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production", // HTTPS only in production
+      sameSite: process.env.SAME_SITE,
     });
     console.log("userLogout part", accessToken, refreshToken);
     return res.send(200, {
