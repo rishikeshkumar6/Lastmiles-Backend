@@ -8,6 +8,7 @@ import {
   generateRefreshToken,
 } from "../../MiddleWare/VerifyToken.js";
 import { otpValue } from "./user.model.js";
+import { WelcomeEmail } from "../message/mail.service.js";
 
 export const userRegistration = async (req, res) => {
   const t = await sequelize.transaction();
@@ -43,6 +44,14 @@ export const otpVerification = async (req, res) => {
           }
         );
         if (updateResponse[0] === 1) {
+          const getUser = await userModelSchema.findOne({
+            where: { id: req.body.id },
+          });
+
+          if (Object.keys(getUser).length > 0) {
+            const { name, email } = getUser;
+            WelcomeEmail(name, email);
+          }
           return res.send(200, {
             statusCode: 200,
             message: "otp verify successfully",

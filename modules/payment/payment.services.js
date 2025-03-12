@@ -42,17 +42,52 @@ export const PaymentVerification = async (req, res) => {
   }
 };
 
+async function create2MonthPlan() {
+  try {
+    const plan = await instance.plans.create({
+      period: "monthly",
+      interval: 2, // Bills every 2 months
+      item: {
+        name: "Yearly Plan (6 Cycles)",
+        amount: 59900, // ₹599 per 2 months
+        currency: "INR",
+      },
+      notes: {
+        description: "Billed every 2 months, total 6 cycles/year",
+      },
+    });
+    return plan.id; // Save this plan_id
+  } catch (err) {
+    console.error("Plan creation error:", err);
+  }
+}
+
+// Backend: Create customer first
 export const BuySubscription = async (req, res) => {
   try {
-    const response = await instance.subscriptions.create({
-      plan_id: process.env.RAZORPAY_PLAN_ID,
-      customer_notify: 1,
-      total_count: 1,
+    // Create customer
+    const customer = await instance.customers.create({
+      name: "Rishikesh Kumar Singh",
+      email: "rishikesh.kumar@gmail.com",
+      contact: "6207654176",
     });
-    console.log(response);
-    res.send(200, { response });
+    console.log("what thing returns inside the customer", customer);
+    // Create plan
+    const plan_id = await create2MonthPlan();
+    console.log(plan_id);
+    // Create subscription with customer ID
+    const response = await instance.subscriptions.create({
+      plan_id: plan_id,
+      customer_id: customer.id, // Add this
+      customer_notify: 1,
+      total_count: 6,
+      expire_by: Math.floor(Date.now() / 1000) + 31536000,
+    });
+
+    res.status(200).json({ response });
   } catch (err) {
-    res.send(500, { errorMessage: "Internal Server Error" });
+    console.error(err);
+    res.status(500).json({ error: err.error.description });
   }
 };
 
