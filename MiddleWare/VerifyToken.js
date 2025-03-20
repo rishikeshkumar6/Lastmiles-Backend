@@ -36,7 +36,9 @@ export const RefreshToken = async (req, res, next) => {
       err instanceof jwt.JsonWebTokenError ||
       err instanceof jwt.TokenExpiredError
     ) {
-      RefreshToken(req, res, next);
+      res
+        .status(404)
+        .json({ statusCode: 404, errorMessage: "token is invaid" });
     } else {
       console.log("Internal server error:", err.message);
       return res

@@ -1,7 +1,6 @@
 import { userModelSchema } from "./user.model.js";
 import { sequelize } from "../../DB/config.js";
 import { Op } from "sequelize";
-import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import {
   generateAccessToken,
@@ -9,10 +8,23 @@ import {
 } from "../../MiddleWare/VerifyToken.js";
 import { otpValue } from "./user.model.js";
 import { WelcomeEmail } from "../message/mail.service.js";
+import { otpGenerator } from "../arithmeticcalculation/otpgenerator.js";
+import { MailOtp } from "../message/mailotp.service.js";
+import { sendOtp, validatePhoneNumber } from "../message/sms.service.js";
+
+let generateOtpValue = null;
 
 export const userRegistration = async (req, res) => {
   const t = await sequelize.transaction();
   try {
+    const { phonenumber } = req.body;
+    const validPhoneNumber = await validatePhoneNumber(phonenumber);
+    if (!validPhoneNumber) {
+      return res.status(400).json({
+        statusCode: 400,
+        errorMessage: "please submit valid phonenumber number",
+      });
+    }
     const response = await userModelSchema.create(req.body, {
       transaction: t,
     });
@@ -44,6 +56,14 @@ export const otpVerification = async (req, res) => {
           }
         );
         if (updateResponse[0] === 1) {
+          const getUser = await userModelSchema.findOne({
+            where: { id: req.body.id },
+          });
+
+          if (Object.keys(getUser).length > 0) {
+            const { name, email } = getUser;
+            WelcomeEmail(name, email);
+          }
           return res.send(200, {
             statusCode: 200,
             message: "otp verify successfully",
@@ -120,6 +140,151 @@ export const userLogin = async (req, res) => {
   } catch (err) {
     console.log("check error", err);
     res.send(500, { errorMessage: `${err} Internal Server Error` });
+  }
+};
+
+export const forgotPassword = async (req, res) => {
+  try {
+    const { phonenumber, email } = req.body;
+    if (!phonenumber && !email)
+      return res.status(400).json({
+        statusCode: 400,
+        errorMessage: "phonenumber or email is required",
+      });
+    const whereClause = {};
+    if (phonenumber) whereClause.phonenumber = phonenumber;
+    if (email) whereClause.email = email;
+
+    const user = await userModelSchema.findOne({
+      where: whereClause,
+    });
+
+    if (!user)
+      return res
+        .status(401)
+        .json({ statusCode: 401, errorMessage: "user record is not found" });
+
+    const { name } = user;
+    const [accessToken, refreshToken] = await Promise.all([
+      generateAccessToken(user),
+      generateRefreshToken(user),
+    ]);
+
+    res.cookie("accessToken", accessToken, {
+      httpOnly: true, // Prevents client-side JS from accessing the cookie
+      secure: process.env.NODE_ENV === "production", // HTTPS only in production
+      sameSite: process.env.SAME_SITE, // CSRF protection
+      maxAge: 60 * 60 * 1000, // 1 hour expiration
+    });
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production", // HTTPS only in production
+      sameSite: process.env.SAME_SITE, // More flexible than strict
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours in milliseconds
+    });
+
+    res.status(201).json({
+      statusCode: 201,
+      message: "phonenumber or email is valid",
+    });
+
+    generateOtpValue = otpGenerator();
+    await Promise.all([
+      phonenumber ? sendOtp(phonenumber, generateOtpValue) : null,
+      email ? MailOtp(name, email, generateOtpValue) : null,
+    ]);
+  } catch (err) {
+    res.send(500, { errorMessage: "Internal Server Error" });
+  }
+};
+
+export const forgotPasswordOtpVerification = async (req, res) => {
+  try {
+    const { id } = req.user.response;
+    const { otp } = req.body;
+    if (!otp || otp !== generateOtpValue)
+      return res
+        .status(401)
+        .send({ statusCode: 401, errorMessage: "Invaid Otp" });
+
+    const user = await userModelSchema.findOne({
+      where: {
+        id: id,
+      },
+    });
+    if (!user)
+      return res
+        .status(404)
+        .json({ statusCode: 404, errorMessage: "User not found" });
+
+    return res
+      .status(201)
+      .json({ statusCode: 201, message: "otp verify successfully" });
+  } catch (err) {
+    res.send(500, { errorMessage: "Internal Server Error" });
+  }
+};
+
+export const UpdatePassword = async (req, res) => {
+  const whereClause = {};
+  const { password } = req.body;
+  const { id } = req.user.response;
+
+  if (id) whereClause.id = id;
+
+  try {
+    const user = await userModelSchema.findOne({ where: whereClause });
+
+    if (!user) {
+      return res
+        .status(401)
+        .json({ statusCode: 401, errorMessage: "User not found" });
+    }
+
+    console.log("🔍 Received Password:", password);
+
+    // Validate password manually before assigning
+    const regex =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    if (!regex.test(password)) {
+      console.log("❌ Password does not match regex!");
+      return res.status(400).json({
+        statusCode: 400,
+        errorMessage:
+          "Password must be at least 8 characters long and include at least one lowercase letter, one uppercase letter, one number, and one special character.",
+      });
+    }
+
+    console.log("✅ Password passed manual validation!");
+
+    user.password = password; // Assign the new password
+    user.changed("password", true); // Force Sequelize to detect the change
+    await user.save();
+
+    console.log("✅ Password updated successfully");
+    const accessToken = res.clearCookie("accessToken", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production", // HTTPS only in production
+      sameSite: process.env.SAME_SITE,
+    });
+    const refreshToken = res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production", // HTTPS only in production
+      sameSite: process.env.SAME_SITE,
+    });
+
+    console.log("userLogout part", accessToken, refreshToken);
+    return res.status(200).json({
+      statusCode: 201,
+      message: "Password updated successfully",
+    });
+  } catch (err) {
+    console.error("❌ Error occurred while updating password:", err);
+    return res.status(500).json({
+      statusCode: 500,
+      errorMessage: "Internal Server Error",
+      errorDetails: err, // Send full error details in response
+    });
   }
 };
 

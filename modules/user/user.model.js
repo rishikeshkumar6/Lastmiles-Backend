@@ -2,8 +2,8 @@ import { sequelize } from "../../DB/config.js";
 import { DataTypes } from "sequelize";
 import bcrypt from "bcrypt";
 import { otpGenerator } from "../arithmeticcalculation/otpgenerator.js";
-import sendOtp from "../message/sms.service.js";
 import { WelcomeEmail } from "../message/mail.service.js";
+import { sendOtp } from "../message/sms.service.js";
 
 export let otpValue = null;
 export const userModelSchema = sequelize.define(
@@ -65,12 +65,15 @@ export const userModelSchema = sequelize.define(
           msg: "Password must be at least 8 characters long",
         },
         isStrongPassword(value) {
-          const regex =
-            /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-          if (!regex.test(value)) {
-            throw new Error(
-              "Password must be at least 8 characters long and include at least one lowercase letter, one uppercase letter, one number, and one special character."
-            );
+          // ✅ Skip validation if password is already hashed
+          if (!value.startsWith("$2b$")) {
+            const regex =
+              /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+            if (!regex.test(value)) {
+              throw new Error(
+                "Password must be at least 8 characters long and include at least one lowercase letter, one uppercase letter, one number, and one special character."
+              );
+            }
           }
         },
       },
@@ -106,10 +109,21 @@ export const userModelSchema = sequelize.define(
           console.log("error part after create", err);
         }
       },
+      beforeUpdate: async (user, options) => {
+        console.log("⚡ Before Update hook triggered");
+        console.log("🔍 Password before hashing:", user.password);
 
-      afterUpdate: async (user) => {
-        console.log("after update hooks");
-        WelcomeEmail(user.name, user.email);
+        if (user.changed("password")) {
+          try {
+            const salt = await bcrypt.genSalt(10);
+            user.password = await bcrypt.hash(user.password, salt);
+            console.log("✅ Password hashed successfully:", user.password);
+          } catch (error) {
+            console.error("❌ Error while hashing password:", error);
+          }
+        } else {
+          console.log("⚠️ Password not changed, skipping hashing.");
+        }
       },
     },
   }

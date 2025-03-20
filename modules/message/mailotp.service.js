@@ -1,5 +1,4 @@
 import nodemailer from "nodemailer";
-import { mailtemplate } from "./mail.template.js";
 // Step 1: Create a transporter
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -9,14 +8,13 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-export const WelcomeEmail = async (name, email) => {
+export const MailOtp = async (name, email, otp) => {
   try {
     const mailOptions = {
       from: "rishikeshkumarsingh810@gmail.com",
       to: email,
       subject: `Welcome ${name}`,
-      text: "This is a test email sent using Nodemailer.",
-      html: mailtemplate,
+      text: `Hey ${name} Your one time password is ${otp} do not share anyone with this otp`,
     };
     transporter.sendMail(mailOptions, (error, info) => {
       if (error) {
@@ -27,14 +25,5 @@ export const WelcomeEmail = async (name, email) => {
     });
   } catch (err) {
     console.log(err);
-  }
-};
-
-export const validateEmail = async (email) => {
-  try {
-    await transporter.verify();
-    return { valid: true, message: "SMTP server is ready" };
-  } catch (error) {
-    return { valid: false, error: error.message };
   }
 };
