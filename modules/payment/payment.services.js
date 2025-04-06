@@ -15,9 +15,7 @@ export const OrderCreation = async (req, res) => {
     });
   } catch (err) {
     console.log(err);
-    return res
-      .status(500)
-      .send({ errorMessage: `${err} Internal Server Error` });
+    return res.status(400).send({ err });
   }
 };
 

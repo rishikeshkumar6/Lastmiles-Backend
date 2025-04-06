@@ -83,57 +83,59 @@ export const otpVerification = async (req, res) => {
 
 export const userLogin = async (req, res) => {
   try {
+    
     const body = req.body;
-    console.log("body", body);
     if (Object.keys(body).length > 0) {
+      const {phonenumber,email}=body
       const response = await userModelSchema.findOne({
         where: {
           [Op.and]: [
             { isOtpVerified: true },
             {
               [Op.or]: {
-                email: body.email,
-                phonenumber: body.phonenumber !== "" ? body.phonenumber : null,
+                email: email,
+                phonenumber: phonenumber !== "" ? phonenumber : null,
               },
             },
           ],
         },
       });
       console.log("response", response);
-      if (response !== null && Object.keys(response).length > 0) {
-        const passwordValidation = await bcrypt.compare(
-          body.password,
-          response.password
-        );
-
-        if (passwordValidation) {
-          const accessToken = generateAccessToken(response);
-          const refreshToken = generateRefreshToken(response);
-          console.log("accessToken", accessToken);
-          console.log("refreshToken", refreshToken);
-          res.cookie("refreshToken", refreshToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production", // HTTPS only in production
-            sameSite: process.env.SAME_SITE, // More flexible than strict
-            maxAge: 24 * 60 * 60 * 1000, // 24 hours in milliseconds
-          });
-          res.cookie("accessToken", accessToken, {
-            httpOnly: true, // Prevents client-side JS from accessing the cookie
-            secure: process.env.NODE_ENV === "production", // HTTPS only in production
-            sameSite: process.env.SAME_SITE, // CSRF protection
-            maxAge: 60 * 60 * 1000, // 1 hour expiration
-          });
-          return res.send(200, {
-            token: accessToken,
-          });
-        }
-      }
-      if (response === null) {
+      if (!response) {
         return res.send(404, {
           statusCode: 401,
           errorMessage: "user not found",
         });
       }
+      const passwordValidation = await bcrypt.compare(
+        body.password,
+        response.password
+      );
+      console.log("passwordValidation", passwordValidation);
+      if (!passwordValidation) {
+        return res
+          .status(401)
+          .json({ statusCode: 401, errorMessage: "user not found" });
+      }
+      const accessToken = generateAccessToken(response);
+      const refreshToken = generateRefreshToken(response);
+      console.log("accessToken", accessToken);
+      console.log("refreshToken", refreshToken);
+      res.cookie("refreshToken", refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production", // HTTPS only in production
+        sameSite: process.env.SAME_SITE, // More flexible than strict
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours in milliseconds
+      });
+      res.cookie("accessToken", accessToken, {
+        httpOnly: true, // Prevents client-side JS from accessing the cookie
+        secure: process.env.NODE_ENV === "production", // HTTPS only in production
+        sameSite: process.env.SAME_SITE, // CSRF protection
+        maxAge: 60 * 60 * 1000, // 1 hour expiration
+      });
+      return res.send(200, {
+        token: accessToken,
+      });
     } else {
       return res.send(404, { errorMessage: "data not available" });
     }
