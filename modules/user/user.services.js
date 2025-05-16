@@ -17,14 +17,15 @@ let generateOtpValue = null;
 export const userRegistration = async (req, res) => {
   const t = await sequelize.transaction();
   try {
+    console.log("validation part is running");
     const { phonenumber } = req.body;
-    const validPhoneNumber = await validatePhoneNumber(phonenumber);
-    if (!validPhoneNumber) {
-      return res.status(400).json({
-        statusCode: 400,
-        errorMessage: "please submit valid phonenumber number",
-      });
-    }
+    // const validPhoneNumber = await validatePhoneNumber(phonenumber);
+    // if (!validPhoneNumber) {
+    //   return res.status(400).json({
+    //     statusCode: 400,
+    //     errorMessage: "please submit valid phonenumber number",
+    //   });
+    // }
     const response = await userModelSchema.create(req.body, {
       transaction: t,
     });
@@ -83,10 +84,9 @@ export const otpVerification = async (req, res) => {
 
 export const userLogin = async (req, res) => {
   try {
-    
     const body = req.body;
     if (Object.keys(body).length > 0) {
-      const {phonenumber,email}=body
+      const { phonenumber, email } = body;
       const response = await userModelSchema.findOne({
         where: {
           [Op.and]: [

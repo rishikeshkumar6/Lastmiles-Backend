@@ -44,7 +44,7 @@ async function create2MonthPlan() {
   try {
     const plan = await instance.plans.create({
       period: "monthly",
-      interval: 2, // Bills every 2 months
+      interval: 1, // Bills every 2 months
       item: {
         name: "Yearly Plan (6 Cycles)",
         amount: 59900, // ₹599 per 2 months
@@ -76,10 +76,7 @@ export const BuySubscription = async (req, res) => {
     // Create subscription with customer ID
     const response = await instance.subscriptions.create({
       plan_id: plan_id,
-      customer_id: customer.id, // Add this
-      customer_notify: 1,
-      total_count: 6,
-      expire_by: Math.floor(Date.now() / 1000) + 31536000,
+      total_count: 1,
     });
 
     res.status(200).json({ response });

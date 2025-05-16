@@ -1,6 +1,8 @@
-import { OrderModel, pickupMoel } from "./order.model.js";
+import { pickupMoel } from "./order.model.js";
+import OrderModel from "./order.model.js";
 import { sequelize } from "../../DB/config.js";
 import { DOUBLE, Op } from "sequelize";
+import { shippingModel } from "./shippingorder.model.js";
 const GetSlug = (slug) => {
   switch (slug) {
     case "consignee-details":
@@ -21,6 +23,11 @@ function isValidEmail(input) {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(input);
 }
+
+const trackingNumber = (pr = "UB775", su = "HK") => {
+  pr += ~~(Math.random() * 100000);
+  return pr + su;
+};
 
 function isValidPhoneNumber(input) {
   // Basic phone number validation
@@ -111,24 +118,63 @@ export const getAllOrder = async (req, res) => {
     const offset = (pageInt - 1) * batchSizeInt;
 
     // Retrieve paginated data
-    const response = await OrderModel.findAll({
-      offset: offset,
-      limit: batchSizeInt,
-      where: whereClause,
-    });
-
-    if (response.length > 0) {
-      return res.status(200).json({
-        orderRes: response,
-        pageCount: Math.ceil(countResult.count / batchSizeInt),
+    if (order_status === "new") {
+      const response = await OrderModel.findAll({
+        offset: offset,
+        limit: batchSizeInt,
+        where: whereClause,
+        attributes: {
+          exclude: ["createdAt", "updatedAt"],
+        },
       });
-    } else {
-      console.log("response", response);
-      res.status(404).json({ errorMessage: "Order not found" });
+
+      if (response.length > 0) {
+        return res.status(200).json({
+          orderRes: response,
+          pageCount: Math.ceil(countResult.count / batchSizeInt),
+        });
+      } else {
+        console.log("response", response);
+        res.status(404).json({ errorMessage: "Order not found" });
+      }
+    }
+    if (order_status === "booked") {
+      const response = await OrderModel.findAll({
+        offset: offset,
+        limit: batchSizeInt,
+        where: whereClause,
+        include: [
+          {
+            model: shippingModel,
+            as: "shippingInfo", // Update this if you define an alias
+            attributes: [
+              "id",
+              "awb_number",
+              "order_id",
+              "courier_partner",
+              "booking_date",
+              "tracking_info",
+            ],
+          },
+        ],
+        attributes: {
+          exclude: ["createdAt", "updatedAt"],
+        },
+      });
+
+      if (response.length > 0) {
+        return res.status(200).json({
+          orderRes: response,
+          pageCount: Math.ceil(countResult.count / batchSizeInt),
+        });
+      } else {
+        console.log("response", response);
+        res.status(404).json({ errorMessage: "Order not found" });
+      }
     }
   } catch (err) {
     console.log(err);
-    res.status(500).json({ errorMessage: "Internal Server Error" });
+    res.status(500).json({ errorMessage: `${err} Internal Server Error` });
   }
 };
 
@@ -164,7 +210,7 @@ export const OrderUpdate = async (req, res) => {
     console.log("getslug test", getSlug);
     console.log("body", body);
     const response = await OrderModel.update(
-      { [getSlug]: body },
+      { [getSlug]: body, order_id: body["orderid"] },
       {
         where: {
           id: id,
@@ -216,6 +262,52 @@ export const bulkOrderCreate = async (req, res) => {
     }
   } catch (err) {
     res.send(500, { errorMessage: "Internal Server Error" });
+  }
+};
+
+export const generateLabel = async (req, res) => {
+  try {
+    const { id } = req.body;
+    const response = await OrderModel.findOne({ where: { id: id } });
+    if (!response)
+      return res
+        .status(401)
+        .json({ statusCode: 401, errorMessage: "order record not found" });
+    return res.status(200).json({
+      statusCode: 200,
+      orderRes: response,
+    });
+  } catch (err) {
+    res
+      .status(500)
+      .json({ statusCode: 500, errorMessage: "internal server error" });
+  }
+};
+
+export const shippingOrder = async (req, res) => {
+  try {
+    const body = req.body;
+    const { id, orderDetails } = req.body;
+    const shippingResponse = await shippingModel.create({
+      order_id: orderDetails.orderid,
+      courier_partner: orderDetails.channel,
+    });
+    const response = await OrderModel.update(
+      { order_status: "booked" },
+      {
+        where: {
+          id: id,
+        },
+      }
+    );
+    res.status(200).json({
+      statusCode: 200,
+      message: "the order is shipped successfully",
+      response,
+      shippingResponse,
+    });
+  } catch (err) {
+    res.status(500).json({ statusCode: 500, err });
   }
 };
 

@@ -20,6 +20,9 @@
   },
   "homepage": "https://github.com/rishikesh86/Book-My-Hotel#readme",
   "dependencies": {
+    "@socket.io/cluster-adapter": "^0.2.2",
+    "@socket.io/redis-adapter": "^8.3.0",
+    "@socket.io/sticky": "^1.0.4",
     "axios": "^1.7.9",
     "bcrypt": "^5.1.1",
     "cluster": "^0.7.7",
@@ -33,7 +36,9 @@
     "puppeteer": "^24.1.0",
     "razorpay": "^2.9.5",
     "reactjs-popup": "^2.0.6",
+    "redis": "^4.7.0",
     "sequelize": "^6.37.5",
+    "socket.io": "^4.8.1",
     "twilio": "^5.4.1"
   }
 }
