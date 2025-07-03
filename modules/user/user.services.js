@@ -1,4 +1,4 @@
-import { userModelSchema } from "./user.model.js";
+import userModelSchema from "./user.model.js";
 import { sequelize } from "../../DB/config.js";
 import { Op } from "sequelize";
 import bcrypt from "bcrypt";
@@ -11,6 +11,7 @@ import { WelcomeEmail } from "../message/mail.service.js";
 import { otpGenerator } from "../arithmeticcalculation/otpgenerator.js";
 import { MailOtp } from "../message/mailotp.service.js";
 import { sendOtp, validatePhoneNumber } from "../message/sms.service.js";
+import { walletModel } from "../payment/payment.model.js";
 
 let generateOtpValue = null;
 
@@ -47,18 +48,20 @@ export const userRegistration = async (req, res) => {
 
 export const otpVerification = async (req, res) => {
   try {
-    console.log(req.body);
+    const { id } = req.body;
+    console.log("----------", otpValue, id, "----------");
     if (Object.keys(req.body).length > 0) {
       if (req.body.otp === otpValue) {
         const updateResponse = await userModelSchema.update(
           { isOtpVerified: true },
           {
-            where: { id: req.body.id },
+            where: { id: id },
           }
         );
+        console.log("----------updatedResponse--------", updateResponse);
         if (updateResponse[0] === 1) {
           const getUser = await userModelSchema.findOne({
-            where: { id: req.body.id },
+            where: { id: id },
           });
 
           if (Object.keys(getUser).length > 0) {
@@ -320,8 +323,18 @@ export const getUser = async (req, res) => {
       const response = await userModelSchema.findOne({
         where: { id: id },
         attributes: ["id", "name", "email", "phonenumber"],
+        include: [
+          {
+            model: walletModel,
+            as: "walletResponse",
+            attributes: ["id", "amount", "account_id", "order_id"],
+          },
+        ],
       });
-      return res.send(200, { response });
+      if (response) return res.send(200, { response });
+      return res
+        .status(401)
+        .json({ statusCode: 401, errorMessage: "user not found" });
     }
     if (req.user["decoded"] !== undefined) {
       console.log("secend condition execute");

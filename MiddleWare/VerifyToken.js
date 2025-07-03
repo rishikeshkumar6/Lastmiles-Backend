@@ -61,6 +61,7 @@ export const verifyToken = async (req, res, next) => {
       const verify = jwt.verify(token, process.env.JWT_ACCESS_TOKEN_SECRET_KEY);
       console.log("verify token response", verify);
       if (verify !== undefined) {
+        console.log("verify", verify);
         req.user = verify;
         return next();
       } else {

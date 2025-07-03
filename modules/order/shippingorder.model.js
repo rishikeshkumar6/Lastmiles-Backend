@@ -40,6 +40,28 @@ export const shippingModel = sequelize.define(
       type: DataTypes.STRING,
       defaultValue: CurrentDateAndTime(),
     },
+    freight_rate: {
+      type: DataTypes.FLOAT,
+      defaultValue: 0,
+    },
+    rto_rate: {
+      type: DataTypes.FLOAT,
+      defaultValue: 0,
+    },
+    estimate_delivey_date: {
+      type: DataTypes.STRING,
+    },
+    estimated_pickup_date: {
+      type: DataTypes.STRING,
+    },
+    min_weight: {
+      type: DataTypes.FLOAT,
+      defaultValue: 0,
+    },
+    weight: {
+      type: DataTypes.FLOAT,
+      defaultValue: 0,
+    },
     tracking_info: {
       type: DataTypes.JSON,
     },

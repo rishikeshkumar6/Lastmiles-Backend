@@ -5,6 +5,7 @@ import warehouseController from "./modules/warehouse/warehouse.controller.js";
 import paymentController from "./modules/payment/payment.controller.js";
 import dhlController from "./modules/courier/dhl.controller.js";
 import orderController from "./modules/order/order.controller.js";
+import imageController from "./modules/image/image.controller.js";
 
 const routes = express.Router();
 
@@ -13,5 +14,6 @@ routes.use(orderController);
 routes.use(paymentController);
 routes.use(warehouseController);
 routes.use(dhlController);
+routes.use(imageController);
 
 export default routes;

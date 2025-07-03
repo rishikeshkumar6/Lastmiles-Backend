@@ -2,11 +2,12 @@ import { sequelize } from "../../DB/config.js";
 import { DataTypes } from "sequelize";
 import bcrypt from "bcrypt";
 import { otpGenerator } from "../arithmeticcalculation/otpgenerator.js";
+import { walletModel } from "../payment/payment.model.js";
 import { WelcomeEmail } from "../message/mail.service.js";
-import { sendOtp } from "../message/sms.service.js";
+import { MailOtp } from "../message/mailotp.service.js";
 
 export let otpValue = null;
-export const userModelSchema = sequelize.define(
+const userModelSchema = sequelize.define(
   "userRecords",
   {
     name: {
@@ -103,7 +104,7 @@ export const userModelSchema = sequelize.define(
       afterCreate: async (user) => {
         otpValue = otpGenerator();
         try {
-          let value = await sendOtp(user.phonenumber, otpValue);
+          let value = await MailOtp(user.name, user.email, otpValue);
           console.log("value checking", value);
         } catch (err) {
           console.log("error part after create", err);
@@ -128,3 +129,17 @@ export const userModelSchema = sequelize.define(
     },
   }
 );
+
+userModelSchema.hasOne(walletModel, {
+  foreignKey: "account_id", // Foreign key in walletModel
+  sourceKey: "id", // References userModelSchema in OrderModel
+  as: "walletResponse",
+});
+
+walletModel.belongsTo(userModelSchema, {
+  foreignKey: "account_id", // Foreign key in walletModel
+  targetKey: "id", // Target order_id in OrderModel
+  as: "walletResponse",
+});
+
+export default userModelSchema;

@@ -1,8 +1,26 @@
 import { instance } from "../../index.js";
 import crypto from "crypto";
+import { sequelize } from "../../DB/config.js";
+import { paymentHistoryModel, walletModel } from "./payment.model.js";
+
+// Helper function for consistent date formatting
+const formatDateTime = (date) => {
+  console.log("date", date);
+  return date.toISOString().slice(0, 19).replace("T", " ");
+};
+
+// Helper function for signature verification
+const verifyRazorpaySignature = (orderId, paymentId, signature, secret) => {
+  const generatedSignature = crypto
+    .createHmac("sha256", secret)
+    .update(`${orderId}|${paymentId}`)
+    .digest("hex");
+
+  return generatedSignature === signature;
+};
 export const OrderCreation = async (req, res) => {
   try {
-    console.log("request body-----", req.body);
+    const { id } = req.user["response"];
     const { amount } = req.body;
     const orders = await instance.orders.create({
       amount: amount * 100,
@@ -11,7 +29,11 @@ export const OrderCreation = async (req, res) => {
     });
     console.log("orders checking----", orders);
     return res.status(200).send({
-      paymentRes: { ...orders, key: process.env.RAZORPAY_API_KEY },
+      paymentRes: {
+        ...orders,
+        key: process.env.RAZORPAY_API_KEY,
+        account_id: id,
+      },
     });
   } catch (err) {
     console.log(err);
@@ -19,24 +41,144 @@ export const OrderCreation = async (req, res) => {
   }
 };
 
-export const PaymentVerification = async (req, res) => {
-  try {
-    console.log("secret key", process.env.RAZORPAY_SECRET_KEY);
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
-      req.body;
-    const generatedSignature = crypto
-      .createHmac("sha256", process.env.RAZORPAY_SECRET_KEY)
-      .update(razorpay_order_id + "|" + razorpay_payment_id)
-      .digest("hex");
+export const paymentVerification = async (req, res) => {
+  const transaction = await sequelize.transaction();
 
-    if (generatedSignature === razorpay_signature) {
-      return res.send(200, { paymentRes: "payment verify successfull" });
-    } else {
-      return res.send(401, { errorMessage: "payment verifaction failed" });
+  try {
+    const {
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      paymentRes,
+    } = req.body;
+
+    // Validate required fields
+    const requiredFields = [
+      "razorpay_order_id",
+      "razorpay_payment_id",
+      "razorpay_signature",
+      "paymentRes",
+    ];
+
+    const missingFields = requiredFields.filter((field) => !req.body[field]);
+    if (missingFields.length > 0) {
+      return res.status(400).json({
+        error: "Missing required fields",
+        missing: missingFields,
+      });
     }
+
+    // Destructure paymentRes with validation
+    const {
+      amount,
+      created_at: createdAtUnix,
+      currency,
+      id: orderId,
+      account_id: accountId,
+    } = paymentRes;
+
+    if (!amount || !createdAtUnix || !accountId) {
+      return res.status(400).json({ error: "Invalid payment response data" });
+    }
+
+    // Verify payment signature
+    if (!process.env.RAZORPAY_SECRET_KEY) {
+      throw new Error("Razorpay secret key not configured");
+    }
+
+    const isValidSignature = verifyRazorpaySignature(
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      process.env.RAZORPAY_SECRET_KEY
+    );
+
+    if (!isValidSignature) {
+      return res.status(401).json({ error: "Payment verification failed" });
+    }
+
+    // Convert amount to base units (e.g., paise to rupees)
+    const normalizedAmount = amount / 100;
+    console.log("normalizedAmount", normalizedAmount);
+    const createdAt = new Date(createdAtUnix * 1000);
+    const transactionId = `${Date.now().toString()}-${accountId}`; // More collision-resistant ID
+
+    // Update or create wallet
+    const [wallet] = await walletModel.findOrCreate({
+      where: { account_id: accountId },
+      defaults: { amount: 0, accountId, order_id: orderId },
+      transaction,
+      lock: true,
+    });
+
+    const updatedBalance = wallet.amount + normalizedAmount;
+    await wallet.update({ amount: updatedBalance }, { transaction });
+
+    // Create payment history
+    await paymentHistoryModel.create(
+      {
+        date: formatDateTime(createdAt),
+        account_id: accountId,
+        transaction_id: transactionId,
+        order_id: orderId,
+        transaction_type: "WALLET_RECHARGE",
+        credit_amount: normalizedAmount,
+        debit_amount: 0,
+        wallet_balance: updatedBalance,
+        payment_status: "SUCCESS",
+        currency: currency || "INR", // Default currency
+      },
+      { transaction }
+    );
+
+    await transaction.commit();
+
+    return res.status(200).json({
+      success: true,
+      message: "Transaction successful",
+      transactionId,
+      newBalance: updatedBalance,
+    });
+  } catch (error) {
+    await transaction.rollback();
+
+    // Log detailed error for debugging
+    console.error(`Payment verification failed: ${error.message}`, {
+      body: req.body,
+      errorStack: error.stack,
+    });
+
+    return res.status(500).json({
+      statusCode: 500,
+      error: "Transaction processing failed",
+      message: error.message,
+    });
+  }
+};
+
+export const getWalletHistory = async (req, res) => {
+  try {
+    const { page, batchSize } = req.query;
+    const offset = ((parseInt(page) || 1) - 1) * (batchSize || 1);
+    const pageCount = await paymentHistoryModel.findAndCountAll({
+      where: { account_id: 469 },
+    });
+    const walletResponse = await paymentHistoryModel.findAll({
+      offset: offset,
+      limit: batchSize,
+      where: { account_id: 469 },
+    });
+    const totalPage = Math.ceil(pageCount.count / (batchSize || 10));
+    res.status(200).json({
+      statusCode: 200,
+      walletResponse,
+      totalPage,
+    });
   } catch (err) {
     console.log(err);
-    res.send(500, { errorMessage: `${err} Internal Server Error` });
+    res
+      .status(500)
+      .json({ statusCode: 500, errorMessage: "internal server error" });
   }
 };
 
@@ -111,7 +253,7 @@ export const Webhook = async (req, res) => {
           .send({ message: "payment received successfully" });
       }
     } else {
-      console.error("Webhook signature verification failed");
+      console.error("payment failed");
       return res.status(400).send({ message: "Invalid signature" });
     }
   } catch (err) {
