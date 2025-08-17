@@ -869,11 +869,12 @@ const pincodeDistance = async (pincode) => {
     const response = await axios.get(
       `https://nominatim.openstreetmap.org/search?postalcode=${pincode}&country=India&format=json`
     );
-    console.log(response.data);
-    const { lat, lon } = response.data[0];
+    console.log(1145);
+    console.log("<<<<response data>>>>", response.data[0].lat);
+    // const { lat, lon } = response.data[0];
     return {
-      lat: parseFloat(lat),
-      lon: parseFloat(lon),
+      lat: parseFloat(response.data[0].lat),
+      lon: parseFloat(response.data[0].lon),
     };
   } catch (err) {
     console.log(err);
@@ -937,8 +938,11 @@ export const freightRate = async (req, res) => {
   try {
     const { pickup_pincode, consignee_pincode, weight } = req.body;
     console.log("payload test", { pickup_pincode, consignee_pincode, weight });
-    const pickupResponse = await pincodeDistance(pickup_pincode);
+    console.log(parseFloat("<<<pickup pincode>>>", pickup_pincode));
+    const pickupResponse = await pincodeDistance(110001);
     const consigneeResponse = await pincodeDistance(consignee_pincode);
+    console.log("pickupResponse", pickupResponse);
+    console.log("consigneeResponse", consigneeResponse);
     const distance = calculateDistanceKm(
       pickupResponse.lat,
       pickupResponse.lon,
