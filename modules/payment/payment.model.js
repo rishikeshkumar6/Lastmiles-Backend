@@ -39,6 +39,9 @@ export const paymentHistoryModel = sequelize.define(
 );
 
 export const walletModel = sequelize.define("walletRecords", {
+  account_id: {
+    type: DataTypes.INTEGER,
+  },
   amount: {
     type: DataTypes.FLOAT,
     defaultValue: 0,

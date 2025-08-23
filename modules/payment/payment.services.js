@@ -159,14 +159,15 @@ export const paymentVerification = async (req, res) => {
 export const getWalletHistory = async (req, res) => {
   try {
     const { page, batchSize } = req.query;
+    const { id } = req.user["response"];
     const offset = ((parseInt(page) || 1) - 1) * (batchSize || 1);
     const pageCount = await paymentHistoryModel.findAndCountAll({
-      where: { account_id: 469 },
+      where: { account_id: id },
     });
     const walletResponse = await paymentHistoryModel.findAll({
       offset: offset,
       limit: batchSize,
-      where: { account_id: 469 },
+      where: { account_id: id },
     });
     const totalPage = Math.ceil(pageCount.count / (batchSize || 10));
     res.status(200).json({

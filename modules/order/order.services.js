@@ -717,7 +717,26 @@ export const bulkOrderCreate = async (req, res) => {
 export const generateLabel = async (req, res) => {
   try {
     const { id } = req.body;
-    const response = await OrderModel.findOne({ where: { id: id } });
+    const response = await OrderModel.findOne({
+      where: { id: id },
+      include: [
+        {
+          model: shippingModel,
+          as: "shippingInfo", // Update this if you define an alias
+          attributes: [
+            "id",
+            "awb_number",
+            "order_id",
+            "courier_partner",
+            "booking_date",
+            "tracking_info",
+          ],
+        },
+      ],
+      attributes: {
+        exclude: ["createdAt", "updatedAt"],
+      },
+    });
     if (!response)
       return res
         .status(401)
@@ -938,7 +957,6 @@ export const freightRate = async (req, res) => {
   try {
     const { pickup_pincode, consignee_pincode, weight } = req.body;
     console.log("payload test", { pickup_pincode, consignee_pincode, weight });
-    console.log(parseFloat("<<<pickup pincode>>>", pickup_pincode));
     const pickupResponse = await pincodeDistance(110001);
     const consigneeResponse = await pincodeDistance(consignee_pincode);
     console.log("pickupResponse", pickupResponse);

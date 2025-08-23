@@ -12,7 +12,7 @@ const routes = express.Router();
 //payment api
 routes.post("/ordercreation", verifyToken, OrderCreation);
 routes.post("/paymentverification", paymentVerification);
-routes.get("/walletHistory", getWalletHistory);
+routes.get("/walletHistory", verifyToken, getWalletHistory);
 routes.get("/buysubscription", verifyToken, BuySubscription);
 routes.post("/webhooktesting", Webhook);
 
