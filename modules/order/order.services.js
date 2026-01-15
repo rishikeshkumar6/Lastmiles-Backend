@@ -188,7 +188,9 @@ export const getAllOrder = async (req, res) => {
 
     if (order_status === "all") {
       delete whereClause.order_status;
-      const countResult = await OrderModel.findAndCountAll();
+      const countResult = await OrderModel.findAndCountAll({
+        where: whereClause,
+      });
       const response = await OrderModel.findAll({
         offset: offset,
         limit: batchSizeInt,
@@ -197,7 +199,6 @@ export const getAllOrder = async (req, res) => {
           exclude: ["createdAt", "updatedAt"],
         },
       });
-
       if (response.length > 0) {
         return res.status(200).json({
           orderRes: response,
@@ -672,7 +673,7 @@ export const updatePickup = async (req, res) => {
 
 export const bulkOrderCreate = async (req, res) => {
   try {
-    console.log("req.body", req.body);
+    const { id } = req.user["response"];
     const body = req.body;
 
     if (req.body !== null && Object.keys(req.body).length > 0) {
@@ -686,7 +687,7 @@ export const bulkOrderCreate = async (req, res) => {
         return elem.orderid;
       });
       const newArray = body.map((elem, index) => {
-        body[index]["account_id"] = elem.account_id;
+        body[index]["account_id"] = id;
         body[index]["order_id"] = elem.orderDetails.orderid;
         return elem.orderDetails.orderid;
       });
@@ -851,6 +852,7 @@ export const shippingOrder = async (req, res) => {
       shippingResponse,
     });
   } catch (err) {
+    console.log("error message checking", err);
     // Rollback on any error
     if (transaction) await transaction.rollback();
     console.error(err);
@@ -956,11 +958,9 @@ function getExpectedPickupDate(distanceInKm) {
 export const freightRate = async (req, res) => {
   try {
     const { pickup_pincode, consignee_pincode, weight } = req.body;
-    console.log("payload test", { pickup_pincode, consignee_pincode, weight });
-    const pickupResponse = await pincodeDistance(110001);
+    const pickupResponse = await pincodeDistance(parseInt(pickup_pincode));
     const consigneeResponse = await pincodeDistance(consignee_pincode);
-    console.log("pickupResponse", pickupResponse);
-    console.log("consigneeResponse", consigneeResponse);
+
     const distance = calculateDistanceKm(
       pickupResponse.lat,
       pickupResponse.lon,
@@ -987,8 +987,6 @@ export const freightRate = async (req, res) => {
       dhl: {},
     };
     const newJsonData = JSON.parse(JSON.stringify(rateCardResponse[0]));
-    console.log("newJSONDATA", newJsonData);
-    console.log("----newJSONDATA", JSON.parse(JSON.stringify(newJsonData)));
     for (let key in newJsonData) {
       console.log(newJsonData[key]);
       const { img_url, min_weight } = newJsonData[key];
@@ -1015,6 +1013,9 @@ export const freightRate = async (req, res) => {
     });
   } catch (err) {
     console.log(err);
-    res.status(500).json({ statusCode: 500, errorMessage: `${err}` });
+    res.status(500).json({
+      statusCode: 500,
+      errorMessage: `An Internal Server Error Occurs`,
+    });
   }
 };
