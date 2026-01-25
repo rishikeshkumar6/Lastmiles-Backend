@@ -42,11 +42,14 @@ app.use(
       }
     },
     credentials: true, // Allow cookies to be sent
-  })
+  }),
 );
 app.use(express.json());
 app.use(express.urlencoded({ extended: true })); // Parse URL-encoded data
 app.use(cookieParser());
+app.get("/health", async (req, res) => {
+  return res.status(200).json({ status: "OK" });
+});
 app.use("/api/v1", routes);
 
 // --- SOCKET.IO EVENTS ---
