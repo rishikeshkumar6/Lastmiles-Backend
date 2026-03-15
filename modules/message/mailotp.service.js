@@ -1,29 +1,22 @@
-import nodemailer from "nodemailer";
-// Step 1: Create a transporter
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: "rishikeshkumarsingh810@gmail.com",
-    pass: "xzin aogw qhmq xeei",
-  },
-});
+import sgMail from "@sendgrid/mail";
+import dotenv from "dotenv";
+dotenv.config();
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 export const MailOtp = async (name, email, otp) => {
   try {
-    const mailOptions = {
-      from: "rishikeshkumarsingh810@gmail.com",
+    const msg = {
       to: email,
+      from: process.env.EMAIL_FROM,
+      replyTo: process.env.EMAIL_FROM,
       subject: `Welcome ${name}`,
-      text: `Hey ${name} Your one time password is ${otp} do not share anyone with this otp`,
+      text: `Hey ${name}, your OTP is ${otp}. Do not share it with anyone.`,
     };
-    transporter.sendMail(mailOptions, (error, info) => {
-      if (error) {
-        console.error("Error:", error);
-      } else {
-        console.log("Email sent successfully:", info.response);
-      }
-    });
-  } catch (err) {
-    console.log(err);
+
+    const response = await sgMail.send(msg);
+
+    console.log("Email sent:", response[0].statusCode);
+  } catch (error) {
+    console.error("SendGrid Error:", error.response?.body || error);
   }
 };

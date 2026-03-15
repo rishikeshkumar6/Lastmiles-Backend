@@ -120,7 +120,7 @@ export const getAllOrder = async (req, res) => {
     const whereClause = {};
     console.log(
       "---------condition checking-------",
-      order_status && id && start_date && end_date
+      order_status && id && start_date && end_date,
     );
     if (order_status && id && start_date && end_date) {
       whereClause.order_status = order_status;
@@ -313,13 +313,13 @@ export const OrderUpdate = async (req, res) => {
         // First deactivate all pickups for the given account ID
         await pickupMoel.update(
           { isActive: false },
-          { where: { pickup_account_id: body.pickup_account_id } }
+          { where: { pickup_account_id: body.pickup_account_id } },
         );
 
         // Then activate the new pickup location
         await pickupMoel.update(
           { isActive: true },
-          { where: { pickup_location_code: body.pickup_location_code } }
+          { where: { pickup_location_code: body.pickup_location_code } },
         );
       }
 
@@ -331,7 +331,7 @@ export const OrderUpdate = async (req, res) => {
             order_id: body["orderid"],
             order_status: "new",
           },
-          { where: { id: parsedId } }
+          { where: { id: parsedId } },
         );
       }
       const response = await OrderModel.update(
@@ -339,7 +339,7 @@ export const OrderUpdate = async (req, res) => {
           [getSlug]: body,
           order_status: "new",
         },
-        { where: { id: parsedId } }
+        { where: { id: parsedId } },
       );
 
       // Send appropriate response based on update result
@@ -359,12 +359,12 @@ export const OrderUpdate = async (req, res) => {
     if (getSlug === "pickupDetails") {
       await pickupMoel.update(
         { isActive: false },
-        { where: { pickup_account_id: body.pickup_account_id } }
+        { where: { pickup_account_id: body.pickup_account_id } },
       );
 
       await pickupMoel.update(
         { isActive: true },
-        { where: { pickup_location_code: body.pickup_location_code } }
+        { where: { pickup_location_code: body.pickup_location_code } },
       );
     }
 
@@ -375,14 +375,14 @@ export const OrderUpdate = async (req, res) => {
           [getSlug]: body,
           order_id: body["orderid"],
         },
-        { where: { id: parsedId } }
+        { where: { id: parsedId } },
       );
     }
     const response = await OrderModel.update(
       {
         [getSlug]: body,
       },
-      { where: { id: parsedId } }
+      { where: { id: parsedId } },
     );
 
     if (response[0] === 1) {
@@ -405,6 +405,7 @@ export const OrderUpdate = async (req, res) => {
 
 export const ManageProduct = async (req, res) => {
   try {
+    const { id } = req.user["response"];
     const { page, batchSize, searchterm } = req.query;
     console.log("page and batchSize", page, batchSize, searchterm);
     const offset = page * batchSize - batchSize;
@@ -412,6 +413,7 @@ export const ManageProduct = async (req, res) => {
     const response = await OrderModel.findAll({
       attributes: ["orderDetails"],
       where: {
+        account_id: id,
         orderDetails: { [Op.ne]: null },
       },
     });
@@ -457,14 +459,14 @@ export const updateProduct = async (req, res) => {
       attributes: ["orderDetails"],
     });
     const index = response[0].orderDetails.productDetails.findIndex(
-      (elem) => elem.sku_code === sku_code
+      (elem) => elem.sku_code === sku_code,
     );
     response[0].orderDetails.productDetails[index] = req.body;
     const updateResponse = await OrderModel.update(
       {
         orderDetails: response[0].orderDetails,
       },
-      { where: { "orderDetails.orderid": orderid } }
+      { where: { "orderDetails.orderid": orderid } },
     );
     if (updateResponse[0] === 1) {
       return res.status(200).json({
@@ -493,15 +495,22 @@ export const deleteProduct = async (req, res) => {
       where: { "orderDetails.orderid": orderid },
       attributes: ["orderDetails"],
     });
+    if (response.orderDetails.productDetails.length <= 1) {
+      return res.status(401).json({
+        statusCode: 401,
+        errorMessage:
+          "order should have at least two products, so product can not be deleted",
+      });
+    }
     response.orderDetails["productDetails"] =
       response.orderDetails.productDetails.filter(
-        (elem) => elem.sku_code !== sku_code
+        (elem) => elem.sku_code !== sku_code,
       );
     const updateResponse = await OrderModel.update(
       {
         orderDetails: response.orderDetails,
       },
-      { where: { "orderDetails.orderid": orderid } }
+      { where: { "orderDetails.orderid": orderid } },
     );
     if (updateResponse[0] === 1) {
       return res
@@ -543,9 +552,11 @@ export const pickupCreate = async (req, res) => {
 
 export const getAllPickup = async (req, res) => {
   try {
+    const { id } = req.user["response"];
     const { page, batchSize, searchTerm } = req.query;
     if (!page && !batchSize && !searchTerm) {
       const pickupResponse = await pickupMoel.findAll({
+        where: { pickup_account_id: id },
         attributes: {
           exclude: ["createdAt", "updatedAt", "id"],
         },
@@ -564,7 +575,7 @@ export const getAllPickup = async (req, res) => {
       searchTerm
     )
       whereClause.pickup_location_name = searchTerm;
-
+    whereClause.pickup_account_id = id;
     const offset = (page - 1) * batchSize;
     const pageCount = await pickupMoel.findAndCountAll({
       where: whereClause,
@@ -624,11 +635,11 @@ export const updatePickupStatus = async (req, res) => {
     const { pickup_location_code, pickup_account_id } = req.body;
     await pickupMoel.update(
       { isActive: false },
-      { where: { pickup_account_id: pickup_account_id } }
+      { where: { pickup_account_id: pickup_account_id } },
     );
     const response = await pickupMoel.update(
       { isActive: true },
-      { where: { pickup_location_code: pickup_location_code } }
+      { where: { pickup_location_code: pickup_location_code } },
     );
 
     if (response[0] === 1)
@@ -796,15 +807,15 @@ export const shippingOrder = async (req, res) => {
 
     await walletModel.update(
       { amount: updatedAmmount },
-      { where: { account_id: Id }, transaction }
+      { where: { account_id: Id }, transaction },
     );
 
     const now = new Date();
     const pad = (n) => n.toString().padStart(2, "0");
     const formattedDate = `${now.getFullYear()}-${pad(
-      now.getMonth() + 1
+      now.getMonth() + 1,
     )}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(
-      now.getMinutes()
+      now.getMinutes(),
     )}:${pad(now.getSeconds())}`;
 
     await paymentHistoryModel.create(
@@ -820,7 +831,7 @@ export const shippingOrder = async (req, res) => {
         payment_status: "SUCCESS",
         currency: "INR",
       },
-      { transaction }
+      { transaction },
     );
 
     const shippingResponse = await shippingModel.create(
@@ -834,12 +845,12 @@ export const shippingOrder = async (req, res) => {
         estimate_delivey_date,
         rto_rate,
       },
-      { transaction }
+      { transaction },
     );
 
     const response = await OrderModel.update(
       { order_status: "booked" },
-      { where: { id: id }, transaction }
+      { where: { id: id }, transaction },
     );
 
     // Commit the transaction
@@ -870,11 +881,11 @@ export const aggregation = async (req, res) => {
       where: sequelize.where(
         sequelize.fn(
           "LENGTH",
-          sequelize.json("consigneeDetails.fullname") // Access JSON field
+          sequelize.json("consigneeDetails.fullname"), // Access JSON field
         ),
         {
           [Op.gt]: 15, // Greater than 15
-        }
+        },
       ),
       attributes: ["consigneeDetails"],
     });
@@ -888,7 +899,7 @@ export const aggregation = async (req, res) => {
 const pincodeDistance = async (pincode) => {
   try {
     const response = await axios.get(
-      `https://nominatim.openstreetmap.org/search?postalcode=${pincode}&country=India&format=json`
+      `https://nominatim.openstreetmap.org/search?postalcode=${pincode}&country=India&format=json`,
     );
     console.log(1145);
     console.log("<<<<response data>>>>", response.data[0].lat);
@@ -958,18 +969,18 @@ function getExpectedPickupDate(distanceInKm) {
 export const freightRate = async (req, res) => {
   try {
     const { pickup_pincode, consignee_pincode, weight } = req.body;
-    const pickupResponse = await pincodeDistance(parseInt(pickup_pincode));
-    const consigneeResponse = await pincodeDistance(consignee_pincode);
+    // const pickupResponse = await pincodeDistance(parseInt(pickup_pincode));
+    // const consigneeResponse = await pincodeDistance(consignee_pincode);
 
-    const distance = calculateDistanceKm(
-      pickupResponse.lat,
-      pickupResponse.lon,
-      consigneeResponse.lat,
-      consigneeResponse.lon
-    );
-    const estimateDeliveryDate = estimateDeliveryDays(distance);
+    // const distance = calculateDistanceKm(
+    //   pickupResponse.lat,
+    //   pickupResponse.lon,
+    //   consigneeResponse.lat,
+    //   consigneeResponse.lon,
+    // );
+    const estimateDeliveryDate = estimateDeliveryDays(10);
     const formatedDate = getExpectedDeliveryDate(estimateDeliveryDate);
-    const expectedPickupDate = getExpectedPickupDate(distance);
+    const expectedPickupDate = getExpectedPickupDate(10);
     const rateCardResponse = await RateCardModel.findAll({
       attributes: {
         exclude: ["id", "createdAt", "updatedAt"],
@@ -996,10 +1007,9 @@ export const freightRate = async (req, res) => {
         per_km: rto_perkm,
         per_kg: rto_perkg,
       } = newJsonData[key]["rto"];
-      freightResponse[key]["freight_rate"] =
-        base + distance * per_km + 1 * per_kg;
+      freightResponse[key]["freight_rate"] = base + 10 * per_km + 1 * per_kg;
       freightResponse[key]["rto_rate"] =
-        rto_base + distance * rto_perkm + 1 * rto_perkg;
+        rto_base + 10 * rto_perkm + 1 * rto_perkg;
       freightResponse[key]["img_url"] = img_url;
       freightResponse[key]["min_weight"] = min_weight;
       freightResponse[key]["estimate_delivey_date"] = formatedDate;

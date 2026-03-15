@@ -19,14 +19,18 @@ export const userRegistration = async (req, res) => {
   const t = await sequelize.transaction();
   try {
     console.log("validation part is running");
-    const { phonenumber } = req.body;
-    // const validPhoneNumber = await validatePhoneNumber(phonenumber);
-    // if (!validPhoneNumber) {
-    //   return res.status(400).json({
-    //     statusCode: 400,
-    //     errorMessage: "please submit valid phonenumber number",
-    //   });
-    // }
+    const { phonenumber, email } = req.body;
+    const isUserExist = await userModelSchema.findOne({
+      where: {
+        [Op.or]: [{ email: email }, { phonenumber: phonenumber }],
+      },
+    });
+    if (isUserExist) {
+      return res.status(400).json({
+        statusCode: 400,
+        errorMessage: "user already exist",
+      });
+    }
     const response = await userModelSchema.create(req.body, {
       transaction: t,
     });
@@ -56,7 +60,7 @@ export const otpVerification = async (req, res) => {
           { isOtpVerified: true },
           {
             where: { id: id },
-          }
+          },
         );
         console.log("----------updatedResponse--------", updateResponse);
         if (updateResponse[0] === 1) {
@@ -112,7 +116,7 @@ export const userLogin = async (req, res) => {
       }
       const passwordValidation = await bcrypt.compare(
         body.password,
-        response.password
+        response.password,
       );
       console.log("passwordValidation", passwordValidation);
       if (!passwordValidation) {
