@@ -4,14 +4,17 @@ dotenv.config();
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 export const MailOtp = async (name, email, otp) => {
+  console.log("Sending OTP email to:", email);
+  console.log("email from:", process.env.Email_From);
   try {
     const msg = {
       to: email,
-      from: process.env.EMAIL_FROM,
-      replyTo: process.env.EMAIL_FROM,
+      from: process.env.Email_From,
+      replyTo: process.env.Email_From,
       subject: `Welcome ${name}`,
       text: `Hey ${name}, your OTP is ${otp}. Do not share it with anyone.`,
     };
+    console.log("Email message constructed:", msg);
 
     const response = await sgMail.send(msg);
 
